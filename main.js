@@ -19,6 +19,7 @@ for (const file of commandFiles) {
 /* Store token in .env for dev, reads config.json if prod. */
 if (config.dev) {
   require('dotenv').config();
+  config.token = process.env.DISCORD_BOT_TOKEN;
   config.channel = process.env.LOG_CHANNEL;
   config.requesturl = process.env.REQUEST_URL;
   config.guildid = process.env.GUILD_ID;
@@ -109,6 +110,6 @@ DiscordClient.on('message', async (message) => {
   }
 });
 
-DiscordClient.login(process.env.DISCORD_BOT_TOKEN || config.token);
+DiscordClient.login(config.token);
 
 module.exports.logger = logger;
