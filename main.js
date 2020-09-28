@@ -61,7 +61,7 @@ process.on('unhandledRejection', (error) => logger.log('error', `Uncaught Promis
 /* Lets us know the bot is ready. */
 DiscordClient.on('ready', async () => {
   setInterval(async() => {
-    await request(config.requesturl, async(error, response, body) => {
+    await request(config.requesturl, async (error, response, body) => {
       if (error) {
         logger.log('error', error);
       }
