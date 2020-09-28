@@ -4,6 +4,6 @@
     "channel": "<channel ID to log to>",
     "requesturl": "<URL to request data from>",
     "guildid": "<guild ID to log to>",
-    "updateintervalinms": 5000,
-    "dev": true
+    "updateintervalinms": 300000,
+    "dev": false
 }
