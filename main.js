@@ -3,11 +3,12 @@ const {format, createLogger, transports} = require('winston');
 const {combine, timestamp, label, printf} = format;
 const {Client, MessageEmbed, Collection} = require('discord.js');
 const request = require('request');
+const config = require('./config.json');
+const Keyv = require('keyv');
 const fs = require('fs');
+require('winston-daily-rotate-file');
 const DiscordClient = new Client();
 DiscordClient.commands = new Collection();
-const config = require('./config.json');
-let lastMessage = 0;
 
 const commandFiles = fs.readdirSync('./commands').filter((file) => file.endsWith('.js'));
 
@@ -23,7 +24,15 @@ if (config.dev) {
   config.channel = process.env.LOG_CHANNEL;
   config.requesturl = process.env.REQUEST_URL;
   config.guildid = process.env.GUILD_ID;
+  config.mysqlconnectionstring = process.env.MYSQL_CONNECTION_STRING;
+  config.fivemserverurl = process.env.FIVEM_SERVER_URL;
 }
+
+const prefix = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'prefix'});
+const channel = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'channel'});
+const dbMessage = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'message'});
+const log = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'log'});
+const url = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'url'});
 
 const embed = new MessageEmbed()
     .setTitle('Server Monitor')
@@ -45,13 +54,14 @@ const logger = createLogger({
   ),
   defaultMeta: {service: 'user-service'},
   transports: [
-    new transports.File({filename: 'error.log', level: 'error'}),
-    new transports.File({filename: 'warn.log', level: 'warn'}),
-    new transports.File({filename: 'info.log', level: 'info'}),
-    new transports.File({filename: 'debug.log', level: 'debug'}),
-    new transports.File({filename: 'combined.log'}),
+    new transports.DailyRotateFile({level: 'error', filename: 'error-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'}),
+    new transports.DailyRotateFile({level: 'warn', filename: 'warn-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'}),
+    new transports.DailyRotateFile({level: 'info', filename: 'info-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'}),
+    new transports.DailyRotateFile({level: 'debug', filename: 'debug-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'})
   ],
 });
+
+
 
 /* Log errors and warnings to console. */
 DiscordClient.on('error', (error) => logger.log('error', error));
@@ -61,36 +71,54 @@ process.on('unhandledRejection', (error) => logger.log('error', `Uncaught Promis
 
 /* Lets us know the bot is ready. */
 DiscordClient.on('ready', async () => {
-  setInterval(async() => {
-    await request(config.requesturl, async (error, response, body) => {
-      if (error) {
-        logger.log('error', error);
+  setInterval(async () => {
+    DiscordClient.guilds.cache.map(async (guild) => {
+      const dataUrl = await url.get(guild.id);
+      const chan = await channel.get(guild.id);
+      let toLog = await log.get(guild.id);
+      if (toLog === null) {
+        toLog = true;
       }
-      logger.log('info', `Response code: ${response.statusCode}`);
-      const data = JSON.parse(body);
-      embed
-          .spliceFields(0, 1, {name: 'Player Count', value: data.length, inline: true});
-      let message = 0;
-      const date = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
-      if (lastMessage) {
-        embed
-            .setFooter(`Last updated ${date}`);
-        const chan = await DiscordClient.guilds.resolve(config.guildid).channels.resolve(config.channel);
-        const editMessage = await chan.messages.fetch(lastMessage);
-        message = await editMessage.edit(embed);
-      } else {
-        embed
-            .setFooter(`Last updated ${date}`);
-        message = await DiscordClient.guilds.resolve(config.guildid).channels.resolve(config.channel).send(embed);
+      if (chan && toLog && dataUrl) {
+        const chanObj = guild.channels.resolve(chan);
+        request(dataUrl, async (error, response, body) => {
+          if (error) {
+            logger.log('error', error);
+          }
+          logger.log('info', `Response code: ${response.statusCode}`);
+          const data = JSON.parse(body);
+          embed
+              .spliceFields(0, 1, {name: 'Player Count', value: data.length, inline: true});
+          let message = 0;
+          const date = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
+          lastMessage = await dbMessage.get(guild.id);
+          if (!(lastMessage)) {
+            lastMessage = 0;
+          }
+          const messageToEdit = await chanObj.messages.fetch(lastMessage);
+          if (lastMessage !== 0) {
+            embed
+                .setFooter(`Last updated ${date}`);
+            message = await messageToEdit.edit(embed);
+          } else {
+            embed
+                .setFooter(`Last updated ${date}`);
+            message = await chanObj.send(embed);
+          }
+          await dbMessage.set(guild.id, message.id);
+        });
       }
-      lastMessage = message.id;
     });
   }, config.updateintervalinms);
   logger.log('info', 'Bot ready and connected!');
 });
 
 DiscordClient.on('message', async (message) => {
-  if (!message.content.startsWith(config.prefix) || message.author.bot) return;
+  let setPrefix = await prefix.get(message.guild.id);
+  if (!(setPrefix)) {
+    setPrefix = '!';
+  }
+  if (!message.content.startsWith(setPrefix) || message.author.bot) return;
   const args = message.content.slice(config.prefix.length).trim().split(/ +/);
   const commandName = args.shift().toLowerCase();
   if (!DiscordClient.commands.has(commandName)) return;
@@ -113,3 +141,10 @@ DiscordClient.on('message', async (message) => {
 DiscordClient.login(config.token);
 
 module.exports.logger = logger;
+module.exports.prefix = prefix;
+module.exports.channel = channel;
+module.exports.log = log;
+module.exports.url = url;
+module.exports.clearLastMessage = function() {
+  lastMessage = 0;
+};

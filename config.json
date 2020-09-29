@@ -2,8 +2,9 @@
     "prefix": "!",
     "token": "<insert token>",
     "channel": "<channel ID to log to>",
-    "requesturl": "<URL to request data from>",
+    "requesturl": "https://<IP/Hostname>:<server port>/players.json",
     "guildid": "<guild ID to log to>",
-    "updateintervalinms": 300000,
-    "dev": false
+    "mysqlconnectionstring": "mysql://<user>:<password>@<server>:<port>/<database>",
+    "updateintervalinms": 20000,
+    "dev": true
 }
