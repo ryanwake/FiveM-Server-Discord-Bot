@@ -14,7 +14,7 @@ module.exports = {
         .setDescription(`Currently monitoring ${config.requesturl}`)
         .addField('Player Count', 0);
 
-    await request(config.requesturl, async(error, response, body) => {
+    await request(config.requesturl, async (error, response, body) => {
       if (error) {
         logger.logger.log('error', error);
       }

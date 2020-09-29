@@ -1,3 +1,4 @@
+/* eslint-disable require-jsdoc */
 /* eslint-disable max-len */
 const {format, createLogger, transports} = require('winston');
 const {combine, timestamp, label, printf} = format;
@@ -32,7 +33,7 @@ const prefix = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconn
 const channel = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'channel'});
 const dbMessage = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'message'});
 const log = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'log'});
-const url = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'url'});
+const dataUrl = new Keyv((process.env.MYSQL_CONNECTION_STRING || config.mysqlconnectionstring), {namespace: 'url'});
 
 const embed = new MessageEmbed()
     .setTitle('Server Monitor')
@@ -71,7 +72,7 @@ process.on('unhandledRejection', (error) => logger.log('error', `Uncaught Promis
 DiscordClient.on('ready', async () => {
   setInterval(async () => {
     DiscordClient.guilds.cache.map(async (guild) => {
-      const dataUrl = await url.get(guild.id);
+      const dataUrl = await configUrl.get(guild.id);
       const chan = await channel.get(guild.id);
       let toLog = await log.get(guild.id);
       if (toLog === null) {
@@ -142,7 +143,7 @@ module.exports.logger = logger;
 module.exports.prefix = prefix;
 module.exports.channel = channel;
 module.exports.log = log;
-module.exports.url = url;
+module.exports.url = dataUrl;
 module.exports.clearLastMessage = function() {
   lastMessage = 0;
 };
