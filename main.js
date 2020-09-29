@@ -57,11 +57,9 @@ const logger = createLogger({
     new transports.DailyRotateFile({level: 'error', filename: 'error-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'}),
     new transports.DailyRotateFile({level: 'warn', filename: 'warn-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'}),
     new transports.DailyRotateFile({level: 'info', filename: 'info-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'}),
-    new transports.DailyRotateFile({level: 'debug', filename: 'debug-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'})
+    new transports.DailyRotateFile({level: 'debug', filename: 'debug-%DATE%.log', datePattern: 'YYYY-MM-DD-HH', zippedArchive: true, maxSize: '20m', maxFiles: '5d'}),
   ],
 });
-
-
 
 /* Log errors and warnings to console. */
 DiscordClient.on('error', (error) => logger.log('error', error));
